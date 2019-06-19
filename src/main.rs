@@ -6,7 +6,7 @@ use std::time::Instant;
 mod code;
 mod parser;
 use parser::parse;
-// mod reduce;
+mod reduce;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
