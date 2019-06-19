@@ -1,0 +1,6 @@
+(\Y * pred 4. Y)
+(\f. (\x. f (x x)) (\x. f (x x)))
+(\m n f x. m (n f) x)
+(\n f x. n (\g h. h (g f)) (\u.x) (\u.u))
+(\f x. f (f (f (f (f x)))))
+
