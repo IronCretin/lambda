@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Exp {
     Var(String),
     Call(Box<Exp>, Box<Exp>),

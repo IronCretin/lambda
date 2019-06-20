@@ -8,7 +8,6 @@ pub enum Reduc {
     Left(Box<Reduc>),
     Right(Box<Reduc>),
     // Body(Box<Reduc>),
-    // Alpha(String),
     Beta,
     // Eta,
     Irred
@@ -62,9 +61,34 @@ pub fn free_vars(ex: &Exp) -> HashSet<String> {
     }
 }
 
-// pub fn sub() -> Exp {
+pub fn sub(ex: Exp, name: &str, new: Exp) -> Exp {
+    match ex {
+        Var(n) => if name == n {
+            new
+        } else {
+            Var(n)
+        }
+        Call(a, b) => Call(Box::new(sub(*a, name, new.clone())), Box::new(sub(*b, name, new))),
+        Lamb(x, r) => if name == x {
+            Lamb(x, r)
+        } else if free_vars(&new).contains(&x) {
+            let mut x_new = x.clone();
+            x_new.push('\'');
+            sub(alpha(Lamb(x, r), x_new), name, new)
+        } else {
+            Lamb(x, Box::new(sub(*r, name, new)))
+        }
+    }
+}
 
-// }
+fn alpha(ex: Exp, new: String) -> Exp {
+    if let Lamb(x, r) = ex {
+        Lamb(new.clone(), Box::new(sub(*r, &x, Var(new))))
+    }
+    else {
+        panic!("{} is not a lambda expression", ex)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -110,6 +134,15 @@ mod tests {
             HashSet::new());
         assert_eq!(free_vars(&parse("(\\x y. x) y")?),
             HashSet::from_iter(vec!["y".to_string()]));
+        Ok(())
+    }
+    #[test]
+    fn substitution() -> Result<(), ParseError> {
+        assert_eq!(sub(parse("x")?, "x", parse("y")?), parse("y")?);
+        assert_eq!(sub(parse("x y")?, "x", parse("z")?), parse("z y")?);
+        assert_eq!(sub(parse("\\x. x z")?, "z", parse("w")?), parse("\\x. x w")?);
+        assert_eq!(sub(parse("\\x. x")?, "x", parse("z")?), parse("\\x. x")?);
+        assert_eq!(sub(parse("\\x. x z")?, "z", parse("x")?), parse("\\x'. x' x")?);
         Ok(())
     }
 }
