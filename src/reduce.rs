@@ -13,15 +13,18 @@ pub enum Reduc {
     Irred
 }
 
-// fn reduce_with(ex: Exp, red: Reduc) -> Exp {
-//     match (ex, red) {
-//         (Call(a, b), Reduc::Beta) => match *a {
-//             Lamb(_, _) =>
-//         }
-//         (ex, Reduc::Irred) => ex,
-//         (e, r) => panic!("bad reduction: {:?} on {}", r, e)
-//     }
-// }
+fn reduce_with(ex: Exp, red: Reduc) -> Exp {
+    match (ex, red) {
+        (Call(a, b), Reduc::Beta) => match *a {
+            Lamb(x, r) => sub(*r, &x, *b),
+            a => panic!("bad beta reduction: lhs {}", a)
+        }
+        (Call(a, b), Reduc::Left(r)) => Call(Box::new(reduce_with(*a, *r)), b),
+        (Call(a, b), Reduc::Right(r)) => Call(a, Box::new(reduce_with(*b, *r))),
+        (ex, Reduc::Irred) => ex,
+        (ex, red) => panic!("bad reduction: {:?} on {}", red, ex)
+    }
+}
 
 pub fn red_byname(ex: &Exp) -> Reduc {
     match ex {
@@ -96,6 +99,17 @@ mod tests {
     use crate::parser::{ parse, ParseError };
     use std::collections::HashSet;
     use std::iter::FromIterator;
+
+    #[test]
+    fn reductions() -> Result<(), ParseError> {
+        assert_eq!(reduce_with(parse("x")?, Reduc::Irred), parse("x")?);
+        assert_eq!(reduce_with(parse("(\\x. y x) z")?, Reduc::Irred), parse("(\\x. y x) z")?);
+        assert_eq!(reduce_with(parse("(\\x. y x) z")?, Reduc::Beta), parse("y z")?);
+        assert_eq!(reduce_with(parse("((\\x z. y x z) z)")?, Reduc::Beta), parse("\\z'. y z z'")?);
+        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, Reduc::Left(Box::new(Reduc::Beta))),
+            parse("b ((\\x. x) y)")?);
+        Ok(())
+    }
 
     #[test]
     fn irred_byname() -> Result<(), ParseError>{
