@@ -24,13 +24,13 @@ pub enum Reduc {
 //     }
 // }
 
-pub fn red_basic(ex: &Exp) -> Reduc {
+pub fn red_byname(ex: &Exp) -> Reduc {
     match ex {
         Call(a, b) => {
             match **a {
                 Lamb(_, _) => Reduc::Beta,
-                _ => match red_basic(a) {
-                    Reduc::Irred => match red_basic(b) {
+                _ => match red_byname(a) {
+                    Reduc::Irred => match red_byname(b) {
                         Reduc::Irred => Reduc::Irred,
                         r => Reduc::Right(Box::new(r))
                     }
@@ -74,27 +74,27 @@ mod tests {
     use std::iter::FromIterator;
 
     #[test]
-    fn irred_basic() -> Result<(), ParseError>{
-        assert_eq!(red_basic(&parse("x")?), Reduc::Irred);
-        assert_eq!(red_basic(&parse("a b")?), Reduc::Irred);
-        assert_eq!(red_basic(&parse("\\x.x")?), Reduc::Irred);
-        assert_eq!(red_basic(&parse("\\x. (\\y.y) z")?), Reduc::Irred);
+    fn irred_byname() -> Result<(), ParseError>{
+        assert_eq!(red_byname(&parse("x")?), Reduc::Irred);
+        assert_eq!(red_byname(&parse("a b")?), Reduc::Irred);
+        assert_eq!(red_byname(&parse("\\x.x")?), Reduc::Irred);
+        assert_eq!(red_byname(&parse("\\x. (\\y.y) z")?), Reduc::Irred);
         Ok(())
     }
     #[test]
-    fn beta_basic() -> Result<(), ParseError> {
-        assert_eq!(red_basic(&parse("(\\x. x) y")?), Reduc::Beta);
-        assert_eq!(red_basic(&parse("(\\x. x) y z")?),
+    fn beta_byname() -> Result<(), ParseError> {
+        assert_eq!(red_byname(&parse("(\\x. x) y")?), Reduc::Beta);
+        assert_eq!(red_byname(&parse("(\\x. x) y z")?),
             Reduc::Left(Box::new(Reduc::Beta)));
-        assert_eq!(red_basic(&parse("z ((\\x. x) y)")?),
+        assert_eq!(red_byname(&parse("z ((\\x. x) y)")?),
             Reduc::Right(Box::new(Reduc::Beta)));
         Ok(())
     }
     #[test]
-    fn order_basic() -> Result<(), ParseError> {
-        assert_eq!(red_basic(&parse("(\\a. a) b ((\\x. x) y)")?),
+    fn order_byname() -> Result<(), ParseError> {
+        assert_eq!(red_byname(&parse("(\\a. a) b ((\\x. x) y)")?),
             Reduc::Left(Box::new(Reduc::Beta)));
-        assert_eq!(red_basic(&parse("(\\x. (\\a. a) x) z w")?),
+        assert_eq!(red_byname(&parse("(\\x. (\\a. a) x) z w")?),
             Reduc::Left(Box::new(Reduc::Beta)));
         Ok(())
     }
