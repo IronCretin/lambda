@@ -2,6 +2,7 @@ use crate::code::Exp;
 use Exp::*;
 
 use std::collections::HashSet;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Reduc {
@@ -11,6 +12,18 @@ pub enum Reduc {
     Beta,
     // Eta,
     Irred
+}
+impl fmt::Display for Reduc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Reduc::Left(r) => write!(f, "({} _)", r),
+            Reduc::Right(r) => write!(f, "(_ {})", r),
+            // Reduc::Body(r) => write!(f, "(\\_. {})", r),
+            Reduc::Beta => write!(f, "β"),
+            // Reduc::Eta => write!(f, "η"),
+            Reduc::Irred => write!(f, "-"),
+        }
+    }
 }
 
 fn reduce_with(ex: Exp, red: Reduc) -> Exp {
@@ -24,6 +37,14 @@ fn reduce_with(ex: Exp, red: Reduc) -> Exp {
         (ex, Reduc::Irred) => ex,
         (ex, red) => panic!("bad reduction: {:?} on {}", red, ex)
     }
+}
+
+fn reduce_step(reduc: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
+    unimplemented!()
+}
+
+fn reduce_full(reduc: fn(&Exp) -> Reduc, mut ex: Exp) -> Exp {
+    unimplemented!()
 }
 
 pub fn red_byname(ex: &Exp) -> Reduc {
@@ -108,11 +129,19 @@ mod tests {
         assert_eq!(reduce_with(parse("((\\x z. y x z) z)")?, Reduc::Beta), parse("\\z'. y z z'")?);
         assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, Reduc::Left(Box::new(Reduc::Beta))),
             parse("b ((\\x. x) y)")?);
+        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, Reduc::Right(Box::new(Reduc::Beta))),
+            parse("(\\a. a) b y")?);
         Ok(())
     }
-
     #[test]
-    fn irred_byname() -> Result<(), ParseError>{
+    fn step_byname() -> Result<(), ParseError> {
+        assert_eq!(reduce_step(red_byname, parse("x")?), (Reduc::Irred, parse("x")?));
+        assert_eq!(reduce_step(red_byname, parse("(\\a. a) b ((\\x. x) y)")?),
+            (Reduc::Left(Box::new(Reduc::Beta)), parse("b ((\\x. x) y)")?));
+        Ok(())
+    }
+    #[test]
+    fn irred_byname() -> Result<(), ParseError> {
         assert_eq!(red_byname(&parse("x")?), Reduc::Irred);
         assert_eq!(red_byname(&parse("a b")?), Reduc::Irred);
         assert_eq!(red_byname(&parse("\\x.x")?), Reduc::Irred);

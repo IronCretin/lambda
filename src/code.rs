@@ -34,3 +34,21 @@ impl fmt::Display for Exp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Exp::*;
+    #[test]
+    fn display_var() {
+        assert_eq!(format!("{}", Var("x".to_string())), "x");
+        assert_eq!(format!("{}", Var("α".to_string())), "α");
+    }
+    #[test]
+    fn display_call() {
+        assert_eq!(format!("{}", Call(
+            Box::new(Var("x".to_string())),
+            Box::new(Var("y".to_string())),
+        )), "x y");
+        assert_eq!(format!("{}", Var("α".to_string())), "α");
+    }
+}
