@@ -26,25 +26,40 @@ impl fmt::Display for Reduc {
     }
 }
 
-fn reduce_with(ex: Exp, red: Reduc) -> Exp {
+fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
     match (ex, red) {
         (Call(a, b), Reduc::Beta) => match *a {
             Lamb(x, r) => sub(*r, &x, *b),
             a => panic!("bad beta reduction: lhs {}", a)
         }
-        (Call(a, b), Reduc::Left(r)) => Call(Box::new(reduce_with(*a, *r)), b),
-        (Call(a, b), Reduc::Right(r)) => Call(a, Box::new(reduce_with(*b, *r))),
+        (Call(a, b), red) => match red {
+            Reduc::Left(r) => Call(Box::new(reduce_with(*a, r)), b),
+            Reduc::Right(r) => Call(a, Box::new(reduce_with(*b, r))),
+            Reduc::Irred => Call(a, b),
+            red => panic!("bad reduction: {:?} on {}", red, Call(a, b))
+        }
         (ex, Reduc::Irred) => ex,
         (ex, red) => panic!("bad reduction: {:?} on {}", red, ex)
     }
 }
 
 fn reduce_step(reduc: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
-    unimplemented!()
+    let red = reduc(&ex);
+    let ex = reduce_with(ex, &red);
+    (red, ex)
 }
 
-fn reduce_full(reduc: fn(&Exp) -> Reduc, mut ex: Exp) -> Exp {
-    unimplemented!()
+fn reduce_full(reduc: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
+    let mut red: Reduc;
+    let mut ex = ex;
+    loop {
+        let t = reduce_step(reduc, ex);
+        red = t.0;
+        ex = t.1;
+        if red == Reduc::Irred {
+            return ex;
+        }
+    }
 }
 
 pub fn red_byname(ex: &Exp) -> Reduc {
@@ -123,13 +138,13 @@ mod tests {
 
     #[test]
     fn reductions() -> Result<(), ParseError> {
-        assert_eq!(reduce_with(parse("x")?, Reduc::Irred), parse("x")?);
-        assert_eq!(reduce_with(parse("(\\x. y x) z")?, Reduc::Irred), parse("(\\x. y x) z")?);
-        assert_eq!(reduce_with(parse("(\\x. y x) z")?, Reduc::Beta), parse("y z")?);
-        assert_eq!(reduce_with(parse("((\\x z. y x z) z)")?, Reduc::Beta), parse("\\z'. y z z'")?);
-        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, Reduc::Left(Box::new(Reduc::Beta))),
+        assert_eq!(reduce_with(parse("x")?, &Reduc::Irred), parse("x")?);
+        assert_eq!(reduce_with(parse("(\\x. y x) z")?, &Reduc::Irred), parse("(\\x. y x) z")?);
+        assert_eq!(reduce_with(parse("(\\x. y x) z")?, &Reduc::Beta), parse("y z")?);
+        assert_eq!(reduce_with(parse("((\\x z. y x z) z)")?, &Reduc::Beta), parse("\\z'. y z z'")?);
+        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, &Reduc::Left(Box::new(Reduc::Beta))),
             parse("b ((\\x. x) y)")?);
-        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, Reduc::Right(Box::new(Reduc::Beta))),
+        assert_eq!(reduce_with(parse("(\\a. a) b ((\\x. x) y)")?, &Reduc::Right(Box::new(Reduc::Beta))),
             parse("(\\a. a) b y")?);
         Ok(())
     }
@@ -138,6 +153,32 @@ mod tests {
         assert_eq!(reduce_step(red_byname, parse("x")?), (Reduc::Irred, parse("x")?));
         assert_eq!(reduce_step(red_byname, parse("(\\a. a) b ((\\x. x) y)")?),
             (Reduc::Left(Box::new(Reduc::Beta)), parse("b ((\\x. x) y)")?));
+        Ok(())
+    }
+    #[test]
+    fn skk_step_byname() -> Result<(), ParseError> {
+        assert_eq!(reduce_step(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+            (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?));
+
+        assert_eq!(reduce_step(red_byname, parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
+            (Reduc::Beta, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?));
+
+        assert_eq!(reduce_step(red_byname, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
+            (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?));
+
+        // assert_eq!(reduce_step(red_byname, parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
+        //     (Reduc::Beta, parse("\\z. (\\x y. x) z (\\x y. x) z)")?));
+
+        // assert_eq!(reduce_step(red_byname, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?),
+        //     (Reduc::Irred, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
+        Ok(())
+    }
+    #[test]
+    fn skk_full_byname() -> Result<(), ParseError> {
+        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+            parse("\\z. (\\x y. x) z ((\\x y. x) z)")?);
+        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
+            parse("a")?);
         Ok(())
     }
     #[test]
