@@ -43,13 +43,13 @@ fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
     }
 }
 
-fn reduce_step(reduc: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
+pub fn reduce_step(reduc: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
     let red = reduc(&ex);
     let ex = reduce_with(ex, &red);
     (red, ex)
 }
 
-fn reduce_full(reduc: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
+pub fn reduce_full(reduc: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
     let mut red: Reduc;
     let mut ex = ex;
     loop {
@@ -166,15 +166,23 @@ mod tests {
         assert_eq!(reduce_step(red_byname, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
             (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?));
 
-        // assert_eq!(reduce_step(red_byname, parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
-        //     (Reduc::Beta, parse("\\z. (\\x y. x) z (\\x y. x) z)")?));
+        assert_eq!(reduce_step(red_byname, parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
+            (Reduc::Beta, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
 
-        // assert_eq!(reduce_step(red_byname, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?),
-        //     (Reduc::Irred, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
+        assert_eq!(reduce_step(red_byname, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?),
+            (Reduc::Irred, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
         Ok(())
     }
     #[test]
     fn skk_full_byname() -> Result<(), ParseError> {
+        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+            parse("\\z. (\\x y. x) z ((\\x y. x) z)")?);
+        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
+            parse("a")?);
+        Ok(())
+    }
+    #[test]
+    fn skk_steps_byname() -> Result<(), ParseError> {
         assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
             parse("\\z. (\\x y. x) z ((\\x y. x) z)")?);
         assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
