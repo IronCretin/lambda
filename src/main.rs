@@ -15,7 +15,7 @@ fn main() {
         fs::read_to_string(&args[1]).expect("error loading file")
     } else {
         print!("> ");
-        stdout().flush().expect("what the fuck");
+        stdout().flush().expect("error flushing stdin");
         let mut buf = String::new();
         stdin().read_to_string(&mut buf).expect("error reading stdin");
         buf
@@ -30,8 +30,8 @@ fn main() {
             println!("{}", ex);
             let now = Instant::now();
             for (red, ex) in reduce_iter(strat_byname, ex) {
-                println!("=={}==>", red);
-                println!("{}", ex);
+                // println!("=={}==>", red);
+                // println!("{}", ex);
             }
             println!("Eval time: {:.3}ms", now.elapsed().as_micros() as f64 * 1e-3);
         }

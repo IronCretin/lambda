@@ -1,7 +1,6 @@
 use crate::code::Exp;
 use Exp::*;
 
-use std::collections::HashSet;
 use std::fmt;
 use std::iter::Iterator;
 // use std::mem::swap;
@@ -102,22 +101,16 @@ pub fn strat_byname(ex: &Exp) -> Reduc {
     }
 }
 
-pub fn free_vars(ex: &Exp) -> HashSet<String> {
+pub fn free_in(var: &str, ex: &Exp) -> bool {
     match ex {
         Var(n) => {
-            let mut v = HashSet::new();
-            v.insert(n.clone());
-            v
+            var == n
         }
         Call(a, b) => {
-            let mut v = free_vars(a);
-            v.extend(free_vars(b));
-            v
+            free_in(var, a) || free_in(var, b)
         }
         Lamb(x, r) => {
-            let mut v = free_vars(r);
-            v.remove(x);
-            v
+            var != x && free_in(var, r)
         }
     }
 }
@@ -132,7 +125,7 @@ pub fn sub(ex: Exp, name: &str, new: Exp) -> Exp {
         Call(a, b) => Call(Box::new(sub(*a, name, new.clone())), Box::new(sub(*b, name, new))),
         Lamb(x, r) => if name == x {
             Lamb(x, r)
-        } else if free_vars(&new).contains(&x) {
+        } else if free_in(&x, &new) {
             let mut x_new = x.clone();
             x_new.push('\'');
             sub(alpha(Lamb(x, r), x_new), name, new)
@@ -155,8 +148,6 @@ fn alpha(ex: Exp, new: String) -> Exp {
 mod tests {
     use super::*;
     use crate::parser::{ parse, ParseError };
-    use std::collections::HashSet;
-    use std::iter::FromIterator;
 
     #[test]
     fn reductions() -> Result<(), ParseError> {
@@ -250,16 +241,12 @@ mod tests {
     }
     #[test]
     fn free() -> Result<(), ParseError> {
-        assert_eq!(free_vars(&parse("x")?),
-            HashSet::from_iter(vec!["x".to_string()]));
-        assert_eq!(free_vars(&parse("x y z")?),
-            HashSet::from_iter(vec!["x".to_string(), "y".to_string(), "z".to_string()]));
-        assert_eq!(free_vars(&parse("(\\x. x) y")?),
-            HashSet::from_iter(vec!["y".to_string()]));
-        assert_eq!(free_vars(&parse("(\\x y. x)")?),
-            HashSet::new());
-        assert_eq!(free_vars(&parse("(\\x y. x) y")?),
-            HashSet::from_iter(vec!["y".to_string()]));
+        assert!(free_in("x", &parse("x")?));
+        assert!(free_in("y", &parse("x y z")?));
+        assert!(free_in("y", &parse("(\\x. x) y")?));
+        assert!(!free_in("x", &parse("(\\x. x) y")?));
+        assert!(!free_in("y", &parse("(\\x y. x)")?));
+        assert!(free_in("y", &parse("(\\x y. x) y")?));
         Ok(())
     }
     #[test]
