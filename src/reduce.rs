@@ -3,6 +3,8 @@ use Exp::*;
 
 use std::collections::HashSet;
 use std::fmt;
+use std::iter::Iterator;
+// use std::mem::swap;
 
 #[derive(Debug, PartialEq)]
 pub enum Reduc {
@@ -43,17 +45,17 @@ fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
     }
 }
 
-pub fn reduce_step(reduc: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
-    let red = reduc(&ex);
+pub fn reduce_step(strat: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
+    let red = strat(&ex);
     let ex = reduce_with(ex, &red);
     (red, ex)
 }
 
-pub fn reduce_full(reduc: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
+pub fn reduce_full(strat: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
     let mut red: Reduc;
     let mut ex = ex;
     loop {
-        let t = reduce_step(reduc, ex);
+        let t = reduce_step(strat, ex);
         red = t.0;
         ex = t.1;
         if red == Reduc::Irred {
@@ -62,13 +64,33 @@ pub fn reduce_full(reduc: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
     }
 }
 
-pub fn red_byname(ex: &Exp) -> Reduc {
+pub struct ReducIter {
+    strat: fn(&Exp) -> Reduc,
+    ex: Exp
+}
+impl Iterator for ReducIter {
+    type Item = (Reduc, Exp);
+    fn next(&mut self) -> Option<(Reduc, Exp)> {
+        let red = (self.strat)(&self.ex);
+        self.ex = reduce_with(self.ex.clone(), &red);
+        match red {
+            Reduc::Irred => None,
+            red => Some((red, (&self.ex).clone()))
+        }
+    }
+}
+
+pub fn reduce_iter(strat: fn(&Exp) -> Reduc, ex: Exp) -> ReducIter {
+    ReducIter { strat, ex }
+}
+
+pub fn strat_byname(ex: &Exp) -> Reduc {
     match ex {
         Call(a, b) => {
             match **a {
                 Lamb(_, _) => Reduc::Beta,
-                _ => match red_byname(a) {
-                    Reduc::Irred => match red_byname(b) {
+                _ => match strat_byname(a) {
+                    Reduc::Irred => match strat_byname(b) {
                         Reduc::Irred => Reduc::Irred,
                         r => Reduc::Right(Box::new(r))
                     }
@@ -150,67 +172,79 @@ mod tests {
     }
     #[test]
     fn step_byname() -> Result<(), ParseError> {
-        assert_eq!(reduce_step(red_byname, parse("x")?), (Reduc::Irred, parse("x")?));
-        assert_eq!(reduce_step(red_byname, parse("(\\a. a) b ((\\x. x) y)")?),
+        assert_eq!(reduce_step(strat_byname, parse("x")?), (Reduc::Irred, parse("x")?));
+        assert_eq!(reduce_step(strat_byname, parse("(\\a. a) b ((\\x. x) y)")?),
             (Reduc::Left(Box::new(Reduc::Beta)), parse("b ((\\x. x) y)")?));
         Ok(())
     }
     #[test]
     fn skk_step_byname() -> Result<(), ParseError> {
-        assert_eq!(reduce_step(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+        assert_eq!(reduce_step(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
             (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?));
 
-        assert_eq!(reduce_step(red_byname, parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
+        assert_eq!(reduce_step(strat_byname, parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
             (Reduc::Beta, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?));
 
-        assert_eq!(reduce_step(red_byname, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
+        assert_eq!(reduce_step(strat_byname, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
             (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?));
 
-        assert_eq!(reduce_step(red_byname, parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
+        assert_eq!(reduce_step(strat_byname, parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
             (Reduc::Beta, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
 
-        assert_eq!(reduce_step(red_byname, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?),
+        assert_eq!(reduce_step(strat_byname, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?),
             (Reduc::Irred, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?));
         Ok(())
     }
     #[test]
+    fn skk_iter_byname() -> Result<(), ParseError> {
+        let steps: Vec<(Reduc, Exp)> = reduce_iter(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?).into_iter().collect();
+        assert_eq!(steps,
+            vec![
+                (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
+                (Reduc::Beta, parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
+                (Reduc::Left(Box::new(Reduc::Beta)), parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
+                (Reduc::Beta, parse("\\z. (\\x y. x) z ((\\x y. x) z)")?)
+            ]);
+        Ok(())
+    }
+    #[test]
     fn skk_full_byname() -> Result<(), ParseError> {
-        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+        assert_eq!(reduce_full(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
             parse("\\z. (\\x y. x) z ((\\x y. x) z)")?);
-        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
+        assert_eq!(reduce_full(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
             parse("a")?);
         Ok(())
     }
     #[test]
     fn skk_steps_byname() -> Result<(), ParseError> {
-        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+        assert_eq!(reduce_full(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
             parse("\\z. (\\x y. x) z ((\\x y. x) z)")?);
-        assert_eq!(reduce_full(red_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
+        assert_eq!(reduce_full(strat_byname, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
             parse("a")?);
         Ok(())
     }
     #[test]
-    fn irred_byname() -> Result<(), ParseError> {
-        assert_eq!(red_byname(&parse("x")?), Reduc::Irred);
-        assert_eq!(red_byname(&parse("a b")?), Reduc::Irred);
-        assert_eq!(red_byname(&parse("\\x.x")?), Reduc::Irred);
-        assert_eq!(red_byname(&parse("\\x. (\\y.y) z")?), Reduc::Irred);
+    fn irstrat_byname() -> Result<(), ParseError> {
+        assert_eq!(strat_byname(&parse("x")?), Reduc::Irred);
+        assert_eq!(strat_byname(&parse("a b")?), Reduc::Irred);
+        assert_eq!(strat_byname(&parse("\\x.x")?), Reduc::Irred);
+        assert_eq!(strat_byname(&parse("\\x. (\\y.y) z")?), Reduc::Irred);
         Ok(())
     }
     #[test]
     fn beta_byname() -> Result<(), ParseError> {
-        assert_eq!(red_byname(&parse("(\\x. x) y")?), Reduc::Beta);
-        assert_eq!(red_byname(&parse("(\\x. x) y z")?),
+        assert_eq!(strat_byname(&parse("(\\x. x) y")?), Reduc::Beta);
+        assert_eq!(strat_byname(&parse("(\\x. x) y z")?),
             Reduc::Left(Box::new(Reduc::Beta)));
-        assert_eq!(red_byname(&parse("z ((\\x. x) y)")?),
+        assert_eq!(strat_byname(&parse("z ((\\x. x) y)")?),
             Reduc::Right(Box::new(Reduc::Beta)));
         Ok(())
     }
     #[test]
     fn order_byname() -> Result<(), ParseError> {
-        assert_eq!(red_byname(&parse("(\\a. a) b ((\\x. x) y)")?),
+        assert_eq!(strat_byname(&parse("(\\a. a) b ((\\x. x) y)")?),
             Reduc::Left(Box::new(Reduc::Beta)));
-        assert_eq!(red_byname(&parse("(\\x. (\\a. a) x) z w")?),
+        assert_eq!(strat_byname(&parse("(\\x. (\\a. a) x) z w")?),
             Reduc::Left(Box::new(Reduc::Beta)));
         Ok(())
     }

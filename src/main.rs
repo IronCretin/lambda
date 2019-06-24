@@ -7,6 +7,7 @@ mod code;
 mod parser;
 use parser::parse;
 mod reduce;
+use reduce::{ reduce_iter, strat_byname };
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,11 +26,17 @@ fn main() {
     println!("Parse time: {:.3}ms", now.elapsed().as_micros() as f64 * 1e-3);
 
     match p {
-        Ok(x) => {
-            println!("{}", x.to_string());
+        Ok(ex) => {
+            println!("{}", ex);
+            let now = Instant::now();
+            for (red, ex) in reduce_iter(strat_byname, ex) {
+                println!("=={}==>", red);
+                println!("{}", ex);
+            }
+            println!("Eval time: {:.3}ms", now.elapsed().as_micros() as f64 * 1e-3);
         }
         Err(e) => {
-            eprintln!("Error: {:?} at {:?}", e.typ, rowcol(e.pos, &inp));
+            eprintln!("Parse error: {:?} at {:?}", e.typ, rowcol(e.pos, &inp));
         }
     }
 }

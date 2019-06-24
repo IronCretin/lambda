@@ -1,4 +1,4 @@
-(\Y * pred 4. Y)
+(\Y * pred 4. * 4 4 S Z)
 (\f. (\x. f (x x)) (\x. f (x x)))
 (\m n f x. m (n f) x)
 (\n f x. n (\g h. h (g f)) (\u.x) (\u.u))
