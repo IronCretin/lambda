@@ -9,7 +9,7 @@ use std::iter::Iterator;
 pub enum Reduc {
     Left(Box<Reduc>),
     Right(Box<Reduc>),
-    // Body(Box<Reduc>),
+    Body(Box<Reduc>),
     Beta,
     // Eta,
     Irred
@@ -19,7 +19,7 @@ impl fmt::Display for Reduc {
         match self {
             Reduc::Left(r) => write!(f, "({} _)", r),
             Reduc::Right(r) => write!(f, "(_ {})", r),
-            // Reduc::Body(r) => write!(f, "(\\_. {})", r),
+            Reduc::Body(r) => write!(f, "(\\. {})", r),
             Reduc::Beta => write!(f, "β"),
             // Reduc::Eta => write!(f, "η"),
             Reduc::Irred => write!(f, "-"),
@@ -34,13 +34,18 @@ fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
             a => panic!("bad beta reduction: lhs {}", a)
         }
         (Call(a, b), red) => match red {
-            Reduc::Left(r) => Call(Box::new(reduce_with(*a, r)), b),
-            Reduc::Right(r) => Call(a, Box::new(reduce_with(*b, r))),
+            Reduc::Left(red) => Call(Box::new(reduce_with(*a, red)), b),
+            Reduc::Right(red) => Call(a, Box::new(reduce_with(*b, red))),
             Reduc::Irred => Call(a, b),
-            red => panic!("bad reduction: {:?} on {}", red, Call(a, b))
+            red => panic!("bad reduction: {} on {}", red, Call(a, b))
+        }
+        (Lamb(x, r), red) => match red {
+            Reduc::Body(red) => Lamb(x, Box::new(reduce_with(*r, red))),
+            Reduc::Irred => Lamb(x, r),
+            red => panic!("bad reduction: {} on {}", red, Lamb(x, r))
         }
         (ex, Reduc::Irred) => ex,
-        (ex, red) => panic!("bad reduction: {:?} on {}", red, ex)
+        (ex, red) => panic!("bad reduction: {} on {}", red, ex)
     }
 }
 
@@ -83,20 +88,37 @@ pub fn reduce_iter(strat: fn(&Exp) -> Reduc, ex: Exp) -> ReducIter {
     ReducIter { strat, ex }
 }
 
+fn wrap_red(wrap: fn(Box<Reduc>) -> Reduc, red: Reduc) -> Reduc {
+    match red {
+        Reduc::Irred => red,
+        _ => wrap(Box::new(red))
+    }
+}
+
 pub fn strat_byname(ex: &Exp) -> Reduc {
     match ex {
         Call(a, b) => {
             match **a {
                 Lamb(_, _) => Reduc::Beta,
                 _ => match strat_byname(a) {
-                    Reduc::Irred => match strat_byname(b) {
-                        Reduc::Irred => Reduc::Irred,
-                        r => Reduc::Right(Box::new(r))
-                    }
+                    Reduc::Irred => wrap_red(Reduc::Right, strat_byname(b)),
                     r => Reduc::Left(Box::new(r))
                 }
             }
         }
+        _ => Reduc::Irred
+    }
+}
+pub fn strat_norm(ex: &Exp) -> Reduc {
+    match ex {
+        Call(a, b) => match strat_norm(a) {
+            Reduc::Irred => match **a {
+                Lamb(_, _) => Reduc::Beta,
+                _ => wrap_red(Reduc::Right, strat_norm(b))
+            }
+            r => Reduc::Left(Box::new(r))
+        }
+        Lamb(_, r) => wrap_red(Reduc::Body, strat_norm(r)),
         _ => Reduc::Irred
     }
 }
@@ -239,6 +261,66 @@ mod tests {
             Reduc::Left(Box::new(Reduc::Beta)));
         Ok(())
     }
+
+    #[test]
+    fn step_norm() -> Result<(), ParseError> {
+        assert_eq!(reduce_step(strat_norm, parse("x")?), (Reduc::Irred, parse("x")?));
+        assert_eq!(reduce_step(strat_norm, parse("(\\a. a) b ((\\x. x) y)")?),
+            (Reduc::Left(Box::new(Reduc::Beta)), parse("b ((\\x. x) y)")?));
+        Ok(())
+    }
+    #[test]
+    fn skk_iter_norm() -> Result<(), ParseError> {
+        let steps: Vec<(String, Exp)> = reduce_iter(strat_norm,
+            parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?)
+            .into_iter().map(|(red, ex)| (format!("{}", red), ex)).collect();
+        assert_eq!(steps,
+            vec![
+                ("(β _)".to_string(), parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
+                ("((\\. (β _)) _)".to_string(), parse("(\\K. (\\y z. K z (y z)) K) (\\x y. x)")?),
+                ("((\\. β) _)".to_string(), parse("(\\K. (\\z. K z (K z))) (\\x y. x)")?),
+                ("β".to_string(), parse("(\\z. (\\x y. x) z ((\\x y. x) z))")?),
+                ("(\\. (β _))".to_string(), parse("(\\z. (\\y. z) ((\\x y. x) z))")?),
+                ("(\\. β)".to_string(), parse("(\\z. z)")?),
+            ]);
+        Ok(())
+    }
+    #[test]
+    fn skk_full_norm() -> Result<(), ParseError> {
+        assert_eq!(reduce_full(strat_norm, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)")?),
+            parse("(\\z. z)")?);
+        assert_eq!(reduce_full(strat_norm, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
+            parse("a")?);
+        Ok(())
+    }
+    #[test]
+    fn irstrat_norm() -> Result<(), ParseError> {
+        assert_eq!(strat_norm(&parse("x")?), Reduc::Irred);
+        assert_eq!(strat_norm(&parse("a b")?), Reduc::Irred);
+        assert_eq!(strat_norm(&parse("\\x.x")?), Reduc::Irred);
+        assert_ne!(strat_norm(&parse("\\x. (\\y.y) z")?), Reduc::Irred);
+        Ok(())
+    }
+    #[test]
+    fn beta_norm() -> Result<(), ParseError> {
+        assert_eq!(strat_norm(&parse("(\\x. x) y")?), Reduc::Beta);
+        assert_eq!(strat_norm(&parse("(\\x. x) y z")?),
+            Reduc::Left(Box::new(Reduc::Beta)));
+        assert_eq!(strat_norm(&parse("z ((\\x. x) y)")?),
+            Reduc::Right(Box::new(Reduc::Beta)));
+        assert_eq!(strat_norm(&parse("\\x. (\\y.y) z")?),
+            Reduc::Body(Box::new(Reduc::Beta)));
+        Ok(())
+    }
+    #[test]
+    fn order_norm() -> Result<(), ParseError> {
+        assert_eq!(strat_norm(&parse("(\\a. a) b ((\\x. x) y)")?),
+            Reduc::Left(Box::new(Reduc::Beta)));
+        assert_eq!(strat_norm(&parse("(\\x. (\\a. a) x y) z")?),
+            Reduc::Left(Box::new(Reduc::Body(Box::new(Reduc::Left(Box::new(Reduc::Beta)))))));
+        Ok(())
+    }
+
     #[test]
     fn free() -> Result<(), ParseError> {
         assert!(free_in("x", &parse("x")?));

@@ -7,20 +7,25 @@ mod code;
 mod parser;
 use parser::parse;
 mod reduce;
-use reduce::{ reduce_iter, strat_byname };
+use reduce::{ reduce_iter, strat_norm };
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let inp = if args.len() >= 2 {
-        fs::read_to_string(&args[1]).expect("error loading file")
+    if args.len() >= 2 {
+        let inp = fs::read_to_string(&args[1]).expect("error loading file");
+        run(&inp);
     } else {
-        print!("> ");
-        stdout().flush().expect("error flushing stdin");
-        let mut buf = String::new();
-        stdin().read_to_string(&mut buf).expect("error reading stdin");
-        buf
+        let mut inp = String::new();
+        loop {
+            print!("> ");
+            stdout().flush().expect("error flushing stdin");
+            stdin().read_line(&mut inp).expect("error reading stdin");
+            run(&inp);
+        }
     };
+}
 
+fn run(inp: &str) {
     let now = Instant::now();
     let p = parse(&inp);
     println!("Parse time: {:.3}ms", now.elapsed().as_micros() as f64 * 1e-3);
@@ -29,11 +34,11 @@ fn main() {
         Ok(ex) => {
             println!("{}", ex);
             let now = Instant::now();
-            for (red, ex) in reduce_iter(strat_byname, ex) {
-                // println!("=={}==>", red);
-                // println!("{}", ex);
+            for (red, ex) in reduce_iter(strat_norm, ex) {
+                println!("=={}==>", red);
+                println!("{}", ex);
             }
-            println!("Eval time: {:.3}ms", now.elapsed().as_micros() as f64 * 1e-3);
+            println!("Eval time: {:.3}s", now.elapsed().as_millis() as f64 * 1e-3);
         }
         Err(e) => {
             eprintln!("Parse error: {:?} at {:?}", e.typ, rowcol(e.pos, &inp));
