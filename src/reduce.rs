@@ -5,7 +5,7 @@ use std::fmt;
 use std::iter::Iterator;
 // use std::mem::swap;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum Reduc {
     Left(Box<Reduc>),
     Right(Box<Reduc>),
@@ -24,6 +24,11 @@ impl fmt::Display for Reduc {
             // Reduc::Eta => write!(f, "η"),
             Reduc::Irred => write!(f, "-"),
         }
+    }
+}
+impl fmt::Debug for Reduc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "={}=>", self)
     }
 }
 
@@ -97,13 +102,11 @@ fn wrap_red(wrap: fn(Box<Reduc>) -> Reduc, red: Reduc) -> Reduc {
 
 pub fn strat_byname(ex: &Exp) -> Reduc {
     match ex {
-        Call(a, b) => {
-            match **a {
-                Lamb(_, _) => Reduc::Beta,
-                _ => match strat_byname(a) {
-                    Reduc::Irred => wrap_red(Reduc::Right, strat_byname(b)),
-                    r => Reduc::Left(Box::new(r))
-                }
+        Call(a, b) => match **a {
+            Lamb(_, _) => Reduc::Beta,
+            _ => match strat_byname(a) {
+                Reduc::Irred => wrap_red(Reduc::Right, strat_byname(b)),
+                r => Reduc::Left(Box::new(r))
             }
         }
         _ => Reduc::Irred
@@ -111,12 +114,12 @@ pub fn strat_byname(ex: &Exp) -> Reduc {
 }
 pub fn strat_norm(ex: &Exp) -> Reduc {
     match ex {
-        Call(a, b) => match strat_norm(a) {
-            Reduc::Irred => match **a {
-                Lamb(_, _) => Reduc::Beta,
-                _ => wrap_red(Reduc::Right, strat_norm(b))
+        Call(a, b) => match **a {
+            Lamb(_, _) => Reduc::Beta,
+            _ => match strat_norm(a) {
+                Reduc::Irred => wrap_red(Reduc::Right, strat_norm(b)),
+                r => Reduc::Left(Box::new(r))
             }
-            r => Reduc::Left(Box::new(r))
         }
         Lamb(_, r) => wrap_red(Reduc::Body, strat_norm(r)),
         _ => Reduc::Irred
@@ -261,6 +264,14 @@ mod tests {
             Reduc::Left(Box::new(Reduc::Beta)));
         Ok(())
     }
+    #[test]
+    fn normalization_byname() -> Result<(), ParseError> {
+        assert_eq!(reduce_full(strat_byname, parse("(\\a b. b) ((\\x. x x) (\\x. x x)) z")?),
+            parse("z")?);
+        assert_eq!(reduce_full(strat_byname, parse("(λf. f ((λx. x x) (λx. x x)) z) (λa b. b)")?),
+            parse("z")?);
+        Ok(())
+    }
 
     #[test]
     fn step_norm() -> Result<(), ParseError> {
@@ -277,8 +288,8 @@ mod tests {
         assert_eq!(steps,
             vec![
                 ("(β _)".to_string(), parse("(\\K. (\\x y z. x z (y z)) K K) (\\x y. x)")?),
-                ("((\\. (β _)) _)".to_string(), parse("(\\K. (\\y z. K z (y z)) K) (\\x y. x)")?),
-                ("((\\. β) _)".to_string(), parse("(\\K. (\\z. K z (K z))) (\\x y. x)")?),
+                ("β".to_string(), parse("(\\x y z. x z (y z)) (\\x y. x) (\\x y. x)")?),
+                ("(β _)".to_string(), parse("(\\y z. (\\x y. x) z (y z)) (\\x y. x)")?),
                 ("β".to_string(), parse("(\\z. (\\x y. x) z ((\\x y. x) z))")?),
                 ("(\\. (β _))".to_string(), parse("(\\z. (\\y. z) ((\\x y. x) z))")?),
                 ("(\\. β)".to_string(), parse("(\\z. z)")?),
@@ -291,6 +302,14 @@ mod tests {
             parse("(\\z. z)")?);
         assert_eq!(reduce_full(strat_norm, parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x) a")?),
             parse("a")?);
+        Ok(())
+    }
+    #[test]
+    fn normalization_norm() -> Result<(), ParseError> {
+        assert_eq!(reduce_full(strat_norm, parse("(\\a b. b) ((\\x. x x) (\\x. x x)) z")?),
+            parse("z")?);
+        assert_eq!(reduce_full(strat_norm, parse("(λf. f ((λx. x x) (λx. x x)) z) (λa b. b)")?),
+            parse("z")?);
         Ok(())
     }
     #[test]
@@ -317,7 +336,7 @@ mod tests {
         assert_eq!(strat_norm(&parse("(\\a. a) b ((\\x. x) y)")?),
             Reduc::Left(Box::new(Reduc::Beta)));
         assert_eq!(strat_norm(&parse("(\\x. (\\a. a) x y) z")?),
-            Reduc::Left(Box::new(Reduc::Body(Box::new(Reduc::Left(Box::new(Reduc::Beta)))))));
+            Reduc::Beta);
         Ok(())
     }
 

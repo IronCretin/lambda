@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Exp {
     Var(String),
     Call(Box<Exp>, Box<Exp>),
@@ -32,6 +32,12 @@ impl fmt::Display for Exp {
                     write!(f, "λ{}{:#}", v, r)
                 }
         }
+    }
+}
+
+impl fmt::Debug for Exp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<{}>", self)
     }
 }
 

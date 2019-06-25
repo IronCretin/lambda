@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{ stdin, stdout, Read, Write };
+use std::io::{ stdin, stdout, Write };
 use std::env;
 use std::time::Instant;
 
