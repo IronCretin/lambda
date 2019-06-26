@@ -62,6 +62,10 @@ fn get_parse(i: &mut usize, input: &[u8], ctx: PCtx) -> Result<Exp, ParseError> 
     while *i < input.len() {
         let ch = input[*i];
         match ch {
+            b'#' => {
+                *i += 1;
+                get_comment(i, input);
+            }
             b'(' => {
                 *i += 1;
                 ex = push_call(ex, get_parse(i, input, PCtx::Paren)?);
@@ -107,10 +111,19 @@ fn get_parse(i: &mut usize, input: &[u8], ctx: PCtx) -> Result<Exp, ParseError> 
     }
 }
 
+fn get_comment(i: &mut usize, input: &[u8]) {
+    while *i < input.len() {
+        if input[*i] == b'\n' {
+            *i += 1;
+            break;
+        }
+        *i += 1;
+    }
+}
+
 fn get_var(i: &mut usize, input: &[u8]) -> String {
     let mut s: Vec<u8> = Vec::with_capacity(10);
-    while *i < input.len() &&
-            !is_reserved(i, input) {
+    while *i < input.len() && !is_reserved(i, input) {
         s.push(input[*i]);
         *i += 1;
     }
@@ -201,6 +214,16 @@ mod tests {
         assert_eq!(parse("λx.x"), parse("\\x.x"));
         assert_eq!(parse("yλx.x"), parse("y\\x.x"));
         assert_eq!(parse("ζλx.x"), parse("ζ \\x.x"));
+    }
+    #[test]
+    fn comments() {
+        assert_eq!(parse("\\x y. z # foo"), parse("\\x y. z"));
+        assert_eq!(parse("\
+(\\S K. S K K)       # substitute in combinators\n\
+(\\x y z. x z (y z)) # S combinator: calls first argument on third, then\n\
+                     # calls the result on the second applied to the third\n\
+(\\x y. x)           # K combinator: returns first argument, ignores second\
+        "), parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)"));
     }
     #[test]
     fn empty_calls() {

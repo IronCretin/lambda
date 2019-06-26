@@ -69,6 +69,26 @@ ARGS:
     <INPUT>    Sets the source file to use, or if none given, launches a REPL
 ```
 
+## Syntax
+
+Lambda expressions consist of variables, applications (calls), and lambda abstractions (calls)
+
+```bnf
+<expression> ::= <variable>
+               | <expression> <expression>
+               | ("λ" | "\") <variable> "." <expression>
+<variable> ::= <one or more of any character except one of λ \ . # ( )>
+```
+
+Applications associate to the left, and the body of a lambda abstraction extends as far to the right as possible, with explicit grouping indicated by parentheses.
+
+```plain
+a b c == ((a b) c) != (a (b c))
+f \x. x y == f (\x. x y) != (f (\x. x)) y
+```
+
+Whitespace is disregarded, and comments are started by `#` and continue until the end of the line.
+
 ## License
 
 Lambda is distributed under the terms of the GNU GPL v3
