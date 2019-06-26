@@ -27,9 +27,9 @@ impl fmt::Display for Exp {
                 if f.alternate() {
                     write!(f, " {}{:#}", v, r)
                 } else if f.sign_plus() || f.sign_minus() {
-                    write!(f, "(λ{}{:#})", v, r)
+                    write!(f, "(\\{}{:#})", v, r)
                 } else {
-                    write!(f, "λ{}{:#}", v, r)
+                    write!(f, "\\{}{:#}", v, r)
                 }
         }
     }

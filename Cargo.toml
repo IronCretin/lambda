@@ -1,7 +1,8 @@
 [package]
 name = "lambda"
-version = "0.1.0"
-authors = ["Paul Maynard <palu.maynard@gmail.com>"]
+version = "0.2.0"
+authors = ["Paul Maynard <Paul.Maynard001@umb.edu>"]
 edition = "2018"
 
 [dependencies]
+clap = "2"

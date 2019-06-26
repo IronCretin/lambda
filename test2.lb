@@ -4,5 +4,5 @@
 (\n f x. n (\g h. h (g f)) (\u.x) (\u.u))
 (\f x. f x)
 (\n. n (\x a b. b) (\a b. a))
-(\f x. f (f (f (x))))
+(\f x. f (f (f (f x))))
 
