@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate clap;
+use clap::{ Arg, App };
 
 use std::fs;
 use std::io::{ stdin, stdout, Write };
@@ -9,33 +10,52 @@ mod code;
 mod parser;
 use parser::parse;
 mod reduce;
-use reduce::{ reduce_iter, reduce_full, strat_norm };
+use reduce::{ Strategy, reduce_iter, reduce_full, strat_norm, strat_byname };
 
 fn main() {
-    let matches = clap_app!(Lambda =>
-        (version: crate_version!())
-        (author: crate_authors!())
-        (about: "Evaluates lambda calculus terms")
-        // (@arg REDUC: -s --strat +takes_value "Sets a reduction strategy")
-        (@arg VERBOSE: -v --verbose "Lists individual reduction steps")
-        (@arg INPUT: "Sets the source file to use, or if none given, launches a REPL")
-    ).get_matches();
+    let matches = App::new("Lambda")
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about("Evaluates lambda calculus terms")
+        .arg(Arg::with_name("STRAT")
+            .short("s")
+            .long("strat")
+            .takes_value(true)
+            .possible_values(&["byname", "normal"])
+            .default_value("normal")
+            .help("Sets reduction order")
+        )
+        .arg(Arg::with_name("VERBOSE")
+            .short("v")
+            .long("verbose")
+            .help("Lists individual reduction steps")
+        )
+        .arg(Arg::with_name("INPUT")
+            .required(true)
+            .help("Sets the source file to use, or if none given, launches a REPL")
+        )
+    .get_matches();
+    let strat = match matches.value_of("STRAT") {
+        Some("byname") => strat_byname,
+        Some("normal") => strat_norm,
+        _ => panic!("invalid strategy")
+    };
     let verbose = matches.is_present("VERBOSE");
     if let Some(file) = matches.value_of("INPUT") {
         let inp = fs::read_to_string(file).expect("error loading file");
-        run(&inp, verbose);
+        run(&inp, strat, verbose);
     } else {
         loop {
             print!("> ");
             stdout().flush().expect("error flushing stdin");
             let mut inp = String::new();
             stdin().read_line(&mut inp).expect("error reading stdin");
-            run(&inp, verbose);
+            run(&inp, strat, verbose);
         }
     };
 }
 
-fn run(inp: &str, verbose: bool) {
+fn run(inp: &str, strat: Strategy, verbose: bool) {
     let now = Instant::now();
     let p = parse(&inp);
     println!("Parse time: {:.3}ms", now.elapsed().as_millis() as f64 * 1e-3);
@@ -45,12 +65,12 @@ fn run(inp: &str, verbose: bool) {
             println!("{}", ex);
             let now = Instant::now();
             if verbose {
-                for (red, ex) in reduce_iter(strat_norm, ex) {
+                for (red, ex) in reduce_iter(strat, ex) {
                     println!("=={}==>", red);
                     println!("{}", ex);
                 }
             } else {
-                println!("{}", reduce_full(strat_norm, ex));
+                println!("{}", reduce_full(strat, ex));
             }
             println!("Eval time: {:.6}s", now.elapsed().as_micros() as f64 * 1e-6);
         }

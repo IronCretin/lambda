@@ -54,13 +54,13 @@ fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
     }
 }
 
-pub fn reduce_step(strat: fn(&Exp) -> Reduc, ex: Exp) -> (Reduc, Exp) {
+pub fn reduce_step(strat: Strategy, ex: Exp) -> (Reduc, Exp) {
     let red = strat(&ex);
     let ex = reduce_with(ex, &red);
     (red, ex)
 }
 
-pub fn reduce_full(strat: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
+pub fn reduce_full(strat: Strategy, ex: Exp) -> Exp {
     let mut red: Reduc;
     let mut ex = ex;
     loop {
@@ -74,7 +74,7 @@ pub fn reduce_full(strat: fn(&Exp) -> Reduc, ex: Exp) -> Exp {
 }
 
 pub struct ReducIter {
-    strat: fn(&Exp) -> Reduc,
+    strat: Strategy,
     ex: Exp
 }
 impl Iterator for ReducIter {
@@ -89,9 +89,11 @@ impl Iterator for ReducIter {
     }
 }
 
-pub fn reduce_iter(strat: fn(&Exp) -> Reduc, ex: Exp) -> ReducIter {
+pub fn reduce_iter(strat: Strategy, ex: Exp) -> ReducIter {
     ReducIter { strat, ex }
 }
+
+pub type Strategy = fn(&Exp) -> Reduc;
 
 fn wrap_red(wrap: fn(Box<Reduc>) -> Reduc, red: Reduc) -> Reduc {
     match red {
