@@ -26,12 +26,11 @@ fn main() {
             .help("Sets reduction order")
         )
         .arg(Arg::with_name("VERBOSE")
-            .short("v")
-            .long("verbose")
+            .short("l")
+            .long("list")
             .help("Lists individual reduction steps")
         )
         .arg(Arg::with_name("INPUT")
-            .required(true)
             .help("Sets the source file to use, or if none given, launches a REPL")
         )
     .get_matches();
@@ -45,8 +44,9 @@ fn main() {
         let inp = fs::read_to_string(file).expect("error loading file");
         run(&inp, strat, verbose);
     } else {
+        println!("Lambda v{}", crate_version!());
         loop {
-            print!("> ");
+            print!("λ> ");
             stdout().flush().expect("error flushing stdin");
             let mut inp = String::new();
             stdin().read_line(&mut inp).expect("error reading stdin");
