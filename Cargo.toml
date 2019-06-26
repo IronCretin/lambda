@@ -5,4 +5,4 @@ authors = ["Paul Maynard <Paul.Maynard001@umb.edu>"]
 edition = "2018"
 
 [dependencies]
-clap = "2"
+clap = "2.33.0"
