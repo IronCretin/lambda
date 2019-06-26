@@ -225,14 +225,14 @@ mod tests {
 (\\x y. x)           # K combinator: returns first argument, ignores second\
         "), parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)"));
     }
-    #[test]
-    fn empty_calls() {
+
+    fn err_empty_calls() {
         assert_eq!(parse(""), p_err(EmptyCall, 0));
         assert_eq!(parse("()"), p_err(EmptyCall, 1));
         assert_eq!(parse("\\x."), p_err(EmptyCall, 3));
     }
     #[test]
-    fn bad_args() {
+    fn err_bad_args() {
         assert_eq!(parse("\\.x"), p_err(EmptyArgs, 1));
         assert_eq!(parse("\\"), p_err(EmptyArgs, 0));
         assert_eq!(parse("\\ "), p_err(EmptyArgs, 1));
@@ -240,22 +240,23 @@ mod tests {
         assert_eq!(parse("\\x)"), p_err(BadArgs, 2));
     }
     #[test]
-    fn bad_args_unicode() {
+    fn err_bad_args_unicode() {
         assert_eq!(parse("λ.α"), p_err(EmptyArgs, 2));
         assert_eq!(parse("λ"), p_err(EmptyArgs, 1));
         assert_eq!(parse("λ "), p_err(EmptyArgs, 2));
         assert_eq!(parse("λαλ"), p_err(BadArgs, 4));
     }
     #[test]
-    fn no_close() {
+    fn err_no_close() {
         assert_eq!(parse("("), p_err(NoClose, 1));
         assert_eq!(parse("(x y z"), p_err(NoClose, 6));
         assert_eq!(parse("(x (y z)"), p_err(NoClose, 8));
     }
     #[test]
-    fn close_early() {
+    fn err_close_early() {
         assert_eq!(parse(")"), p_err(CloseEarly, 0));
         assert_eq!(parse("x y) z"), p_err(CloseEarly, 3));
         assert_eq!(parse("(x y) z)"), p_err(CloseEarly, 7));
     }
+
 }
