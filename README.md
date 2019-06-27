@@ -40,7 +40,7 @@ Either download a binary from the [releases](https://github.com/IronCretin/lambd
 $ git clone https://github.com/IronCretin/lambda.git
 $ cd lambda
 $ cargo build
-$ cargo run -- -v
+$ cargo run -- -l
 Lambda v0.2.0-alpha
 λ>
 ```
