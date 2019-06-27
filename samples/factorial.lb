@@ -5,6 +5,6 @@ let *    := \m n f x. m (n f) x;                     # multiplication
 let pred := \n f x. n (\g h. h (g f)) (\u.x) (\u.u); # predecessor function for numbers
 let 1    := \f x. f x;                               # church number 1
 let 0?   := \n. n (\x a b. b) (\a b. a);             # check if numer is zero
-let N    := \f x. f (f (f (f x)));                   # input number
+let N    := \f x. f (f (f (f (f x))));               # input number
 let fac  := Y \fac n. 0? n 1 (* n (fac (pred n)));   # recursive factorial function
 fac N
