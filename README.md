@@ -4,7 +4,7 @@ A simple lambda calculus interpreter.
 
 ## Features
 
-Parsing and reduction of lambda calculus expressions, including unicode support and syntax sugar (no `let` yet though):
+Parsing and reduction of lambda calculus expressions, including unicode support and syntax sugar:
 
 ```plain
 (\S K. S K K) (\x y z. x z (y z)) (\x y. x)
@@ -74,17 +74,23 @@ ARGS:
 Lambda expressions consist of variables, applications (calls), and lambda abstractions (calls)
 
 ```bnf
-<expression> ::= <variable>
+<expression> ::= <name>
                | <expression> <expression>
-               | ("λ" | "\") <variable> "." <expression>
-<variable> ::= <one or more of any character except one of λ \ . # ( )>
+               | ("λ" | "\") <name> "." <expression>
+               | let <name> ":=" <expression>; <expression>
+<name> ::= <one or more of any characters except one of λ \ . # ; := ( )>
 ```
 
-Applications associate to the left, and the body of a lambda abstraction extends as far to the right as possible, with explicit grouping indicated by parentheses.
+Applications associate to the left, and the body of a lambda abstraction or `let` statement extends as far to the right as possible, with explicit grouping indicated by parentheses.
 
 ```plain
 a b c == ((a b) c) != (a (b c))
 f \x. x y == f (\x. x y) != (f (\x. x)) y
+```
+
+`let` statements are sugar for lambda applications:
+```plain
+let x := y; x x == (\x. x x) y
 ```
 
 Whitespace is disregarded, and comments are started by `#` and continue until the end of the line.
