@@ -34,7 +34,7 @@ Option to list reduction steps:
 
 ## Installation
 
-Either download a binary from the [releases](https://github.com/IronCretin/lambda/releases) page, or install manually:
+Either download a binary from the [releases](https://github.com/IronCretin/lambda/releases) page, or build manually (requires [rust](https://www.rust-lang.org/tools/install)):
 
 ```bash
 $ git clone https://github.com/IronCretin/lambda.git
@@ -44,7 +44,7 @@ $ cargo run -- -v
 Lambda v0.2.0-alpha
 λ>
 ```
-
+>
 > NOTE: `cargo run` requires flags to be passed behind `--` in order to pass them to the executable.
 
 ### Dependencies
