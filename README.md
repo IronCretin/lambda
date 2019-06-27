@@ -4,7 +4,7 @@ A simple lambda calculus interpreter.
 
 ## Features
 
-Parsing and reduction of lambda calculus expressions, including unicode support and syntax sugar (no `let` yet though):
+Parsing and reduction of lambda calculus expressions, including unicode support and syntax sugar:
 
 ```plain
 (\S K. S K K) (\x y z. x z (y z)) (\x y. x)
@@ -41,7 +41,7 @@ $ git clone https://github.com/IronCretin/lambda.git
 $ cd lambda
 $ cargo build
 $ cargo run -- -v
-Lambda v0.1.0
+Lambda v0.2.0-alpha
 λ>
 ```
 
@@ -68,6 +68,32 @@ OPTIONS:
 ARGS:
     <INPUT>    Sets the source file to use, or if none given, launches a REPL
 ```
+
+## Syntax
+
+Lambda expressions consist of variables, applications (calls), and lambda abstractions (calls)
+
+```bnf
+<expression> ::= <name>
+               | <expression> <expression>
+               | ("λ" | "\") <name> "." <expression>
+               | let <name> ":=" <expression>; <expression>
+<name> ::= <one or more of any characters except one of λ \ . # ; := ( )>
+```
+
+Applications associate to the left, and the body of a lambda abstraction or `let` statement extends as far to the right as possible, with explicit grouping indicated by parentheses.
+
+```plain
+a b c == ((a b) c) != (a (b c))
+f \x. x y == f (\x. x y) != (f (\x. x)) y
+```
+
+`let` statements are sugar for lambda applications:
+```plain
+let x := y; x x == (\x. x x) y
+```
+
+Whitespace is disregarded, and comments are started by `#` and continue until the end of the line.
 
 ## License
 

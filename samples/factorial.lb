@@ -1,7 +1,10 @@
-(\Y * pred 1 0? N. (\fac. fac N) (Y \fac n. 0? n 1 (* n (fac (pred n)))))
-(\f. (\x. f (x x)) (\x. f (x x)))
-(\m n f x. m (n f) x)
-(\n f x. n (\g h. h (g f)) (\u.x) (\u.u))
-(\f x. f x)
-(\n. n (\x a b. b) (\a b. a))
-(\f x. f (f (f (f (f x)))))
+# Factorial: computes the factorial of a number
+
+let Y    := \f. (\x. f (x x)) (\x. f (x x));         # Y combinator
+let *    := \m n f x. m (n f) x;                     # multiplication
+let pred := \n f x. n (\g h. h (g f)) (\u.x) (\u.u); # predecessor function for numbers
+let 1    := \f x. f x;                               # church number 1
+let 0?   := \n. n (\x a b. b) (\a b. a);             # check if numer is zero
+let N    := \f x. f (f (f (f x)));                   # input number
+let fac  := Y \fac n. 0? n 1 (* n (fac (pred n)));   # recursive factorial function
+fac N

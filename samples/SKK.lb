@@ -1,1 +1,9 @@
-(\S K. S K K) (\x y z. x z (y z)) (\x y. x)
+# The S and K combinators form a complete basis that can generate all possible
+# lambda terms. 
+# This program demonstrates a way to generate the identity function from the
+# SK basis.
+
+let S := \x y z. x z (y z); # S combinator: calls first argument on third, then calls
+                            # the result on the second applied to the third
+let K := (\x y. x);         # K combinator: returns first argument, ignores second
+S K K                       # Reduces to identity

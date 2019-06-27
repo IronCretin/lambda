@@ -1,1 +1,6 @@
+# Lazy evaluation: the second argument diverges, but is not needed to calculate
+# the normal form of the expression. Normal order and by-name reduction
+# substitute arguments before evaluating them, while applicative order fails to
+# reduce this because tt tries to evaluate the arguments first.
+
 (\a b. a) z ((\x. x x) (\x. x x))
