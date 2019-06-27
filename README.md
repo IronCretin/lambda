@@ -78,7 +78,7 @@ Lambda expressions consist of variables, applications (calls), and lambda abstra
                | <expression> <expression>
                | ("λ" | "\") <name> "." <expression>
                | let <name> ":=" <expression>; <expression>
-<name> ::= <one or more of any characters except one of λ \ . # ; := ( )>
+<name> ::= <one or more of any characters except one of λ \ . # ; let := ( )>
 ```
 
 Applications associate to the left, and the body of a lambda abstraction or `let` statement extends as far to the right as possible, with explicit grouping indicated by parentheses.
