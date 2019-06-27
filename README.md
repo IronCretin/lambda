@@ -41,7 +41,7 @@ $ git clone https://github.com/IronCretin/lambda.git
 $ cd lambda
 $ cargo build
 $ cargo run -- -v
-Lambda v0.1.0
+Lambda v0.2.0-alpha
 λ>
 ```
 

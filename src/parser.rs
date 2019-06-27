@@ -36,7 +36,12 @@ fn is_space(c: u8) -> bool {
 fn is_reserved(i: &usize, input: &[u8]) -> bool {
     let c = input[*i];
     is_space(c) || c == b'(' || c == b')' || c == b'\\' || c == b'.' ||
-        (c == LAM_HI && *i < input.len()-1 && input[*i+1] == LAM_LO)
+        check_seq(i, input, &[LAM_HI, LAM_LO])
+}
+fn check_seq(i: &usize, input: &[u8], seq: &[u8]) -> bool {
+    i + seq.len() <= input.len() &&
+        &input[*i..(i+seq.len())] == seq
+
 }
 fn push_call(ex: Option<Exp>, new: Exp) -> Option<Exp> {
     Some(match ex {
@@ -226,6 +231,7 @@ mod tests {
         "), parse("(\\S K. S K K) (\\x y z. x z (y z)) (\\x y. x)"));
     }
 
+    #[test]
     fn err_empty_calls() {
         assert_eq!(parse(""), p_err(EmptyCall, 0));
         assert_eq!(parse("()"), p_err(EmptyCall, 1));
