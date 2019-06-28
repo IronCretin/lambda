@@ -35,7 +35,7 @@ impl fmt::Debug for Reduc {
 fn reduce_with(ex: Exp, red: &Reduc) -> Exp {
     match (ex, red) {
         (Call(a, b), Reduc::Beta) => match *a {
-            Lamb(x, r) => sub(*r, &x, *b),
+            Lamb(x, r) => sub(*r, &x, &b),
             a => panic!("bad beta reduction: lhs {}", a)
         }
         (Call(a, b), red) => match red {
@@ -142,17 +142,17 @@ pub fn free_in(var: &str, ex: &Exp) -> bool {
     }
 }
 
-pub fn sub(ex: Exp, name: &str, new: Exp) -> Exp {
+pub fn sub(ex: Exp, name: &str, new: &Exp) -> Exp {
     match ex {
         Var(n) => if name == n {
-            new
+            new.clone()
         } else {
             Var(n)
         }
-        Call(a, b) => Call(Box::new(sub(*a, name, new.clone())), Box::new(sub(*b, name, new))),
+        Call(a, b) => Call(Box::new(sub(*a, name, new)), Box::new(sub(*b, name, new))),
         Lamb(x, r) => if name == x {
             Lamb(x, r)
-        } else if free_in(&x, &new) {
+        } else if free_in(&x, new) {
             let mut x_new = x.clone();
             x_new.push('\'');
             sub(alpha(Lamb(x, r), x_new), name, new)
@@ -164,7 +164,7 @@ pub fn sub(ex: Exp, name: &str, new: Exp) -> Exp {
 
 fn alpha(ex: Exp, new: String) -> Exp {
     if let Lamb(x, r) = ex {
-        Lamb(new.clone(), Box::new(sub(*r, &x, Var(new))))
+        Lamb(new.clone(), Box::new(sub(*r, &x, &Var(new))))
     }
     else {
         panic!("{} is not a lambda expression", ex)
@@ -354,11 +354,11 @@ mod tests {
     }
     #[test]
     fn substitution() -> Result<(), ParseError> {
-        assert_eq!(sub(parse("x")?, "x", parse("y")?), parse("y")?);
-        assert_eq!(sub(parse("x y")?, "x", parse("z")?), parse("z y")?);
-        assert_eq!(sub(parse("\\x. x z")?, "z", parse("w")?), parse("\\x. x w")?);
-        assert_eq!(sub(parse("\\x. x")?, "x", parse("z")?), parse("\\x. x")?);
-        assert_eq!(sub(parse("\\x. x z")?, "z", parse("x")?), parse("\\x'. x' x")?);
+        assert_eq!(sub(parse("x")?, "x", &parse("y")?), parse("y")?);
+        assert_eq!(sub(parse("x y")?, "x", &parse("z")?), parse("z y")?);
+        assert_eq!(sub(parse("\\x. x z")?, "z", &parse("w")?), parse("\\x. x w")?);
+        assert_eq!(sub(parse("\\x. x")?, "x", &parse("z")?), parse("\\x. x")?);
+        assert_eq!(sub(parse("\\x. x z")?, "z", &parse("x")?), parse("\\x'. x' x")?);
         Ok(())
     }
 }
